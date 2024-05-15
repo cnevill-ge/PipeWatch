@@ -18,7 +18,7 @@
 		internal static bool ValidateSettingsAndWarn( IWin32Window parent, Settings settings )
 		{
 			DevopsAccess access = new DevopsAccess( settings );
-			if( !access.ValidateUserSettings( out string invalidReason ) )
+			if( !access.ValidateUserSettings( out string? invalidReason ) )
 			{
 				MessageBox.Show( parent, "The configured user settings are invalid:\n\n" + invalidReason,
 					"Missing input", MessageBoxButtons.OK, MessageBoxIcon.Error );

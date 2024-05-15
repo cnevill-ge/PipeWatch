@@ -9,6 +9,7 @@ namespace PipeWatch
 	using PipeWatch.Properties;
 	using System.Security.Policy;
 	using System.Windows.Forms.VisualStyles;
+	using System.ComponentModel.Design;
 
 	public class DevopsAccess
 	{
@@ -16,7 +17,6 @@ namespace PipeWatch
 		private RestClient m_restClient;
 		private readonly string m_hideRunFile;
 		private List<RunId> m_hideRuns = new List<RunId>();
-		private bool m_didFirstLoad;
 		private readonly Dictionary<string, string> m_commitMessageCache = new Dictionary<string, string>();
 		private readonly Dictionary<string, string> m_prTitleCache = new Dictionary<string, string>();
 		private readonly Dictionary<int, StaticRunInfo> m_staticRunInfoCache = new Dictionary<int, StaticRunInfo>();
@@ -36,10 +36,19 @@ namespace PipeWatch
 			RefreshUserSettings();
 		}
 
+		public const int MaxLookbackCount = 25;
+		public static readonly TimeSpan MaxLookbackAge = TimeSpan.FromDays( 7 );
+
+		/// <summary>
+		/// Records the last URL that this object attempted to query, only containing a value if the
+		/// query fails for some reason.
+		/// </summary>
+		public string? LastQueryUrl { get; private set; }
+
 		/// <summary>
 		/// Checks that the Settings object provided at construction seems to be valid.
 		/// </summary>
-		public bool ValidateUserSettings( out string invalidReason )
+		public bool ValidateUserSettings( out string? invalidReason )
 		{
 			JsonNode? node = m_restClient.Get<JsonNode>( new RestRequest( "_apis/projects" ) )!;
 			if( node == null )
@@ -56,7 +65,7 @@ namespace PipeWatch
 			}
 
 			// Do all the referenced projects exist?
-			string[] names = values.Select( x => x.GetString( "name" ) ).ToArray();
+			string[] names = values.Select( x => x!.GetString( "name" ) ).ToArray();
 			string[] missingNames = this.WatchProjects.Where( name => !names.Contains( name, StringComparer.OrdinalIgnoreCase ) ).ToArray();
 			if( missingNames.Length > 0 )
 			{
@@ -170,6 +179,12 @@ namespace PipeWatch
 			DateTimeOffset startTime = build["startTime"] != null
 					? build.GetProp<DateTimeOffset>( "startTime" )
 					: build.GetProp<DateTimeOffset>( "queueTime" );
+
+			// In some cases we will see very old builds even with a reasonable	'top' filter in GetRecentBuildsByProject.
+			// These builds may reference repositories which don't exist or in other ways confuse this code.
+			if( (DateTimeOffset.UtcNow - startTime) > MaxLookbackAge )
+				return null;
+
 			RunId id = new RunId( buildId, startTime );
 
 			// Should be skipping this build?
@@ -225,16 +240,13 @@ namespace PipeWatch
 
 		private IEnumerable<JsonNode> GetRecentBuildsByProject( string project )
 		{
-			int topCount = m_didFirstLoad ? 10 : 50;
-			m_didFirstLoad = true;
-
 			// Although we refer mostly to "runs" in this class, DevOps gives back slightly different
 			// information for Builds vs. Runs. The interface for listing builds is more useful so we
 			// start there. Note that build ids and run ids are the same (a build and a run with the same
 			// id represent the same activity).
 			var response = QueryDevops( project, "build/builds", request =>
 			{
-				request.AddQueryParameter( "$top", topCount );
+				request.AddQueryParameter( "$top", MaxLookbackCount );
 				request.AddQueryParameter( "requestedFor", Properties.Settings.Default.GitUserName );
 				request.AddQueryParameter( "queryOrder", "startTimeDescending" );
 			} );
@@ -314,6 +326,8 @@ namespace PipeWatch
 			var request = new RestRequest( url );
 			if( augmentRequest != null )
 				augmentRequest( request );
+
+			this.LastQueryUrl = m_restClient.Options.BaseUrl + "/" + url;
 			return m_restClient.Get<JsonNode>( request )!;
 		}
 

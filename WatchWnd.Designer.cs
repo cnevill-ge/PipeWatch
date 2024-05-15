@@ -29,12 +29,17 @@
 		private void InitializeComponent()
 		{
 			components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager( typeof( WatchWnd ) );
 			m_refreshTimer = new System.Windows.Forms.Timer( components );
 			m_flowPanel = new FlowLayoutPanel();
 			m_toolStrip = new ToolStrip();
 			m_toolRefresh = new ToolStripButton();
 			m_toolSettings = new ToolStripButton();
+			m_statusStrip = new StatusStrip();
+			m_statusError = new ToolStripStatusLabel();
+			m_toolDismissAll = new ToolStripButton();
 			m_toolStrip.SuspendLayout();
+			m_statusStrip.SuspendLayout();
 			SuspendLayout();
 			// 
 			// m_flowPanel
@@ -42,12 +47,12 @@
 			m_flowPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 			m_flowPanel.Location = new Point( 0, 26 );
 			m_flowPanel.Name = "m_flowPanel";
-			m_flowPanel.Size = new Size( 316, 127 );
+			m_flowPanel.Size = new Size( 316, 102 );
 			m_flowPanel.TabIndex = 0;
 			// 
 			// m_toolStrip
 			// 
-			m_toolStrip.Items.AddRange( new ToolStripItem[] { m_toolRefresh, m_toolSettings } );
+			m_toolStrip.Items.AddRange( new ToolStripItem[] { m_toolRefresh, m_toolSettings, m_toolDismissAll } );
 			m_toolStrip.Location = new Point( 0, 0 );
 			m_toolStrip.Name = "m_toolStrip";
 			m_toolStrip.Size = new Size( 316, 25 );
@@ -72,6 +77,35 @@
 			m_toolSettings.Text = "Settings...";
 			m_toolSettings.Click += toolSettings_Click;
 			// 
+			// m_statusStrip
+			// 
+			m_statusStrip.Items.AddRange( new ToolStripItem[] { m_statusError } );
+			m_statusStrip.Location = new Point( 0, 131 );
+			m_statusStrip.Name = "m_statusStrip";
+			m_statusStrip.Size = new Size( 316, 22 );
+			m_statusStrip.TabIndex = 2;
+			m_statusStrip.Text = "statusStrip1";
+			// 
+			// m_statusError
+			// 
+			m_statusError.BackColor = Color.Transparent;
+			m_statusError.Image = Properties.Resources.failure;
+			m_statusError.IsLink = true;
+			m_statusError.Name = "m_statusError";
+			m_statusError.Size = new Size( 98, 17 );
+			m_statusError.Text = "Error occurred";
+			m_statusError.Click += statusError_Click;
+			// 
+			// m_toolDismissAll
+			// 
+			m_toolDismissAll.DisplayStyle = ToolStripItemDisplayStyle.Text;
+			m_toolDismissAll.Image = (Image)resources.GetObject( "m_toolDismissAll.Image" );
+			m_toolDismissAll.ImageTransparentColor = Color.Magenta;
+			m_toolDismissAll.Name = "m_toolDismissAll";
+			m_toolDismissAll.Size = new Size( 68, 22 );
+			m_toolDismissAll.Text = "Dismiss All";
+			m_toolDismissAll.Click += toolDismissAll_Click;
+			// 
 			// WatchWnd
 			// 
 			AllowDrop = true;
@@ -79,12 +113,15 @@
 			AutoScaleMode = AutoScaleMode.Font;
 			BackColor = SystemColors.Window;
 			ClientSize = new Size( 316, 153 );
+			Controls.Add( m_statusStrip );
 			Controls.Add( m_toolStrip );
 			Controls.Add( m_flowPanel );
 			Name = "WatchWnd";
 			Text = "Pipe Watch";
 			m_toolStrip.ResumeLayout( false );
 			m_toolStrip.PerformLayout();
+			m_statusStrip.ResumeLayout( false );
+			m_statusStrip.PerformLayout();
 			ResumeLayout( false );
 			PerformLayout();
 		}
@@ -95,5 +132,8 @@
 		private ToolStrip m_toolStrip;
 		private ToolStripButton m_toolRefresh;
 		private ToolStripButton m_toolSettings;
+		private StatusStrip m_statusStrip;
+		private ToolStripStatusLabel m_statusError;
+		private ToolStripButton m_toolDismissAll;
 	}
 }

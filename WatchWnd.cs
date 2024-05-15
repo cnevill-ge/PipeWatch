@@ -16,6 +16,8 @@ namespace PipeWatch
 		private readonly Size m_singleRunSize;
 		private readonly Label m_labelNoRuns;
 		private bool m_refreshing;
+		private Exception? m_lastError;
+		private string? m_errorQueryUrl;
 
 		public WatchWnd()
 		{
@@ -34,11 +36,20 @@ namespace PipeWatch
 			m_labelNoRuns.Location = new Point( 0, m_toolStrip.Height );
 			m_labelNoRuns.Visible = false;
 			this.Controls.Add( m_labelNoRuns );
+
+			// Hide the error indicator for now
+			m_statusError.Visible = false;
 		}
 
 		public static WatchWnd? Instance { get; private set; }
 
 		private const int GutterSize = 10;
+
+		/// <summary>
+		/// The height of the auxiliary controls on our display, such as the toolbar and status bar
+		/// </summary>
+		private int AuxiliaryDisplayHeight =>
+			m_toolStrip.Height + m_statusStrip.Height;
 
 		protected override void OnLoad( EventArgs e )
 		{
@@ -106,6 +117,24 @@ namespace PipeWatch
 			RefreshList();
 		}
 
+		private void toolDismissAll_Click( object sender, EventArgs e )
+		{
+			foreach( RunStatusView view in m_flowPanel.Controls.Cast<RunStatusView>() )
+				m_devops.HideRun( view.Run );
+			BeginInvoke( () => RefreshList() );
+		}
+
+		private void statusError_Click( object sender, EventArgs e )
+		{
+			if( m_lastError == null )
+				return;
+
+			string message = "Error refreshing from DevOps: " + m_lastError.Message;
+			message += "\n\n" + "The last URL queried was: " + m_errorQueryUrl;
+			MessageBox.Show( this, message, "DevOps Access Error",
+				MessageBoxButtons.OK, MessageBoxIcon.Stop );
+		}
+
 		private const string DragFormatUrlW = "UniformResourceLocatorW";
 
 		protected override void OnDragEnter( DragEventArgs drgevent )
@@ -148,7 +177,7 @@ namespace PipeWatch
 			{
 				m_flowPanel.Visible = false;
 				m_labelNoRuns.Visible = true;
-				this.ClientSize = new Size( m_singleRunSize.Width, m_labelNoRuns.Height + m_toolStrip.Height );
+				this.ClientSize = new Size( m_singleRunSize.Width, m_labelNoRuns.Height + this.AuxiliaryDisplayHeight );
 				return;
 			}
 			else
@@ -190,7 +219,7 @@ namespace PipeWatch
 
 			int viewsHeight = ((m_singleRunSize.Height + halfGutter) * m_flowPanel.Controls.Count) + halfGutter;
 			this.ClientSize = new Size( m_singleRunSize.Width + GutterSize,
-				m_toolStrip.Height + viewsHeight );
+				viewsHeight + this.AuxiliaryDisplayHeight );
 		}
 
 		private void FlashWindowIfNeeded( RunInfo[] newRuns )
@@ -217,6 +246,9 @@ namespace PipeWatch
 
 		private RunInfo[]? GetRunsOfInterest()
 		{
+			m_lastError = null;
+			m_statusError.Visible = false;
+
 			this.UseWaitCursor = true;
 			m_refreshing = true;
 			try
@@ -225,8 +257,9 @@ namespace PipeWatch
 			}
 			catch( Exception ex )
 			{
-				MessageBox.Show( this, "Error refreshing from DevOps: " + ex.ToString(), "DevOps Access Error",
-					MessageBoxButtons.OK, MessageBoxIcon.Stop );
+				m_lastError = ex;
+				m_errorQueryUrl = m_devops.LastQueryUrl;
+				m_statusError.Visible = true;
 				return null;
 			}
 			finally
